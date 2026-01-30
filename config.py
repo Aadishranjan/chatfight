@@ -1,9 +1,14 @@
-API_ID = 32476023
-API_HASH = "37d3c47e7e9eaf00509911790c7138f5"
-BOT_TOKEN = "8465747345:AAGfLqdTm2hHu5ek060-te3v6FGXw0yupps"
-MONGO_URI = "mongodb://Aadish:aadish2008@ac-owiguby-shard-00-00.cdly6hj.mongodb.net:27017,ac-owiguby-shard-00-01.cdly6hj.mongodb.net:27017,ac-owiguby-shard-00-02.cdly6hj.mongodb.net:27017/?ssl=true&replicaSet=atlas-fgbjd8-shard-0&authSource=admin&retryWrites=true&w=majority"
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+API_ID = int(os.getenv("API_ID", "0"))
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+MONGO_URL = os.getenv("MONGO_URL")
+OWNER_USERNAME = os.getenv("OWNER_USERNAME")
+BOT_NAME = os.getenv("BOT_NAME")
+BOT_USERNAME = os.getenv("BOT_USERNAME")
+UPDATES_CHANNEL = os.getenv("UPDATES_CHANNEL")
 TIMEZONE = "Asia/Kolkata"
-OWNER_USERNAME = "Shivansh_Thakur_7"  # without @
-BOT_NAME = "ChatFight⚡️"
-BOT_USERNAME = "ChatxYutaBot"  # without @
-UPDATES_CHANNEL = "YutaxBots"  # without @
