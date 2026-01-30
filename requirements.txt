@@ -1,0 +1,6 @@
+pyrogram
+tgcrypto
+motor
+pillow
+apscheduler
+pytz
