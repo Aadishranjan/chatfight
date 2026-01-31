@@ -5,3 +5,4 @@ __pycache__/
 *.session-journal
 .venv
 info.txt
+resource/

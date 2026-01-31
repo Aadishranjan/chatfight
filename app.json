@@ -1,0 +1,52 @@
+{
+  "name": "ChatFight",
+  "description": "ChatFight Bot tracks group activity, ranks members, and turns chatting into a fun competition.",
+  "repository": "https://github.com/Aadishranjan/chatfight",
+  "keywords": ["telegram", "bot", "pyrogram", "chatfight", "chat-counter"],
+  "env": {
+    "API_ID": {
+      "description": "Your Telegram API ID",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API Hash",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "Your Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "MONGO_URL": {
+      "description": "MongoDB connection URL",
+      "required": true
+    },
+    "OWNER_USERNAME": {
+      "description": "Bot owner username (without @)",
+      "required": true
+    },
+    "BOT_NAME": {
+      "description": "Name of the bot",
+      "required": true
+    },
+    "BOT_USERNAME": {
+      "description": "Bot username (without @)",
+      "required": true
+    },
+    "UPDATES_CHANNEL": {
+      "description": "Updates channel username (without @)",
+      "required": false
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "stack": "heroku-22"
+}

@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: chatfight-bot
+    env: python
+    region: oregon
+    plan: free
+
+    buildCommand: |
+      pip install -r requirements.txt
+
+    startCommand: python3 run.py
+    autoDeploy: true
+
+    envVars:
+      API_ID:
+        sync: false
+      API_HASH:
+        sync: false
+      BOT_TOKEN:
+        sync: false
+
+      MONGO_URL:
+        sync: false
+
+      OWNER_USERNAME:
+        sync: false
+
+      BOT_NAME:
+        sync: false
+      BOT_USERNAME:
+        sync: false
+
+      UPDATES_CHANNEL:
+        sync: false
