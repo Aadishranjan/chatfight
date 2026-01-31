@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/equalizer.svg" width="100%" height="500">
+  <video src="assets/equalizer.svg" width="100%" height="500">
 </p>
 
 <div align="center">
@@ -74,7 +74,7 @@
 
 ## 🧩 Environment Variables
 
-Create a `.env` file and fill **only these** 👇
+Rename `sample.env` to `.env` file and fill **only these** 👇
 
 ```env
 API_ID=
@@ -129,10 +129,17 @@ python3 run.py
 
 ---
 
-## 🌟 Credits
+## 🌟 𝐂𝐫𝐞𝐝𝐢𝐭𝐬
 
-- **Main Developer:** Aadish ranjan
-- **Built with:** Pyrogram
+<div align="center">
+
+**𝐌𝐚𝐢𝐧 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫**
+
+[![Aadish](https://img.shields.io/badge/Aadish-black?style=for-the-badge&logo=github)](https://github.com/Aadishranjan)
+
+**𝐒𝐩𝐞𝐜𝐢𝐚𝐥 𝐓𝐡𝐚𝐧𝐤𝐬 𝐭𝐨 𝐀𝐥𝐥 𝐂𝐨𝐧𝐭𝐫𝐢𝐛𝐮𝐭𝐨𝐫𝐬**
+
+</div>
 
 ---
 
