@@ -1,5 +1,5 @@
 <p align="center">
-  <video src="assets/equalizer.svg" width="100%" height="500">
+  <img src="assets/equalizer.svg" width="100%" height="500">
 </p>
 
 <div align="center">

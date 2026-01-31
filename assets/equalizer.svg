@@ -25,8 +25,19 @@
 
   <!-- Equalizer bars (left and mirrored right) -->
   <style type="text/css"><![CDATA[
-    .bar { fill: #ff4d4d; transition: fill 150ms ease; cursor: default; }
-    .bar:hover { fill: #00D9FF; }
+    .bar {
+      fill: #ff4d4d;
+      stroke: transparent;
+      stroke-width: 0;
+      transition: fill 150ms ease, stroke 200ms ease, filter 200ms ease;
+      cursor: pointer;
+    }
+    .bar:hover {
+      /* Keep fill, but add neon outline + glow */
+      stroke: #00D9FF;
+      stroke-width: 4;
+      filter: drop-shadow(0 0 8px #00D9FF) drop-shadow(0 0 12px rgba(0,217,255,0.35));
+    }
   ]]></style>
 
   <!-- Define bars once, then place on both sides -->
