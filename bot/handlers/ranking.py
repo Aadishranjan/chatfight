@@ -1,23 +1,26 @@
-from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
+from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import os
 
-from bot.client import app
-from bot.database import stats
+import bot.database as database
 from bot.utils.time import today, week
 from bot.utils.image import leaderboard_image
 
 
 # ---------- KEYBOARD ----------
-def keyboard():
+def keyboard(mode: str = "overall"):
+    overall_text = "✅ Overall" if mode == "overall" else "⏺️ Overall"
+    today_text = "✅ Today" if mode == "today" else "⏺️ Today"
+    week_text = "✅ Week" if mode == "week" else "⏺️ Week"
+    
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("⏺️ Overall", callback_data="rank_overall"),
+                InlineKeyboardButton(overall_text, callback_data="rank_overall"),
             ],
             [
-                InlineKeyboardButton("⏺️ Today", callback_data="rank_today"),
-                InlineKeyboardButton("⏺️ Week", callback_data="rank_week"),
+                InlineKeyboardButton(today_text, callback_data="rank_today"),
+                InlineKeyboardButton(week_text, callback_data="rank_week"),
             ]
         ]
     )
@@ -26,7 +29,7 @@ def keyboard():
 # ---------- TEXT BUILDER ----------
 async def build_text(chat_id, mode):
     if mode == "overall":
-        data = await stats.find(
+        data = await database.stats.find(
             {"chat_id": chat_id}
         ).sort("overall", -1).limit(10).to_list(10)
 
@@ -34,7 +37,7 @@ async def build_text(chat_id, mode):
         get_count = lambda u: u.get("overall", 0)
 
     elif mode == "today":
-        data = await stats.find(
+        data = await database.stats.find(
             {"chat_id": chat_id, "today.date": today()}
         ).sort("today.count", -1).limit(10).to_list(10)
 
@@ -42,7 +45,7 @@ async def build_text(chat_id, mode):
         get_count = lambda u: u.get("today", {}).get("count", 0)
 
     else:  # week
-        data = await stats.find(
+        data = await database.stats.find(
             {"chat_id": chat_id, "week.week": week()}
         ).sort("week.count", -1).limit(10).to_list(10)
 
@@ -50,34 +53,44 @@ async def build_text(chat_id, mode):
         get_count = lambda u: u.get("week", {}).get("count", 0)
 
     if not data:
-        return f"📈 **{title}**\n\n_No data yet._"
+        return "<b>📈 {}</b>\n\n<i>No data yet.</i>".format(title)
 
-    text = f"📈 **{title}**\n\n"
+    text = "<b>📈 {}</b>\n\n".format(title)
     total = 0
 
     for i, u in enumerate(data, 1):
         c = get_count(u)
         total += c
-        text += f"{i}. {u['name']} • `{c}`\n"
+        text += "<b>{}. {} • {}</b>\n".format(i, u['name'], c)
 
-    text += f"\n✉️ Total messages: `{total}`"
+    text += "\n<b>✉️ Total messages: {}</b>".format(total)
     return text
 
 
 # ---------- /ranking ----------
-@app.on_message(filters.command("rankings", prefixes="/"))
-async def ranking(_, m):
-    chat_id = m.chat.id
+async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Only allow in groups
+    if update.effective_chat.type == "private":
+        await update.effective_message.reply_text(
+            "<b>This command only works in groups.</b>",
+            parse_mode="HTML"
+        )
+        return
+
+    m = update.effective_message
+    chat = update.effective_chat
+    chat_id = chat.id
 
     # ONLY OVERALL IMAGE
-    data = await stats.find(
+    data = await database.stats.find(
         {"chat_id": chat_id}
     ).sort("overall", -1).limit(10).to_list(10)
 
     if not data:
         await m.reply_text(
-            "🏆 **CHATFIGHT LEADERBOARD**\n\n_No data yet._",
-            reply_markup=keyboard()
+            "<b>🏆 CHATFIGHT LEADERBOARD</b>\n\n<i>No data yet.</i>",
+            reply_markup=keyboard("overall"),
+            parse_mode="HTML"
         )
         return
 
@@ -89,10 +102,12 @@ async def ranking(_, m):
     image_path = leaderboard_image(leaderboard_data, "LEADERBOARD")
     caption = await build_text(chat_id, "overall")
 
-    await m.reply_photo(
-        image_path,
+    await context.bot.send_photo(
+        chat_id=chat_id,
+        photo=open(image_path, "rb"),
         caption=caption,
-        reply_markup=keyboard()
+        reply_markup=keyboard("overall"),
+        parse_mode="HTML"
     )
 
     # Delete the image after sending
@@ -101,8 +116,9 @@ async def ranking(_, m):
 
 
 # ---------- CALLBACKS (TEXT ONLY) ----------
-@app.on_callback_query(filters.regex("^rank_"))
-async def ranking_callback(_, q):
+async def ranking_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
     chat_id = q.message.chat.id
     mode = q.data.replace("rank_", "")
 
@@ -110,6 +126,11 @@ async def ranking_callback(_, q):
 
     await q.edit_message_caption(
         text,
-        reply_markup=keyboard()
+        reply_markup=keyboard(mode),
+        parse_mode="HTML"
     )
-    await q.answer()
+
+
+def register(app):
+    app.add_handler(CommandHandler("rankings", ranking))
+    app.add_handler(CallbackQueryHandler(ranking_callback, pattern=r"^rank_"))

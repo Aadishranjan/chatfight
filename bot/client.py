@@ -1,9 +1,6 @@
-from pyrogram import Client
-from config import *
+from telegram.ext import ApplicationBuilder
+from config import BOT_TOKEN
 
-app = Client(
-    "chatfight",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+
+def build_app():
+    return ApplicationBuilder().token(BOT_TOKEN).build()

@@ -1,20 +1,22 @@
-from pyrogram import filters, types
-from bot.client import app
-from bot.database import stats
+from telegram import Update
+from telegram.ext import ContextTypes, MessageHandler, filters
+import bot.database as database
 from bot.utils.time import today, week
 
-@app.on_message(filters.group & ~filters.service)
-async def counter(_, m):
-    if not m.from_user:
-        return
-    
-    if m.command:
+
+async def counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    m = update.effective_message
+    if not m or not m.from_user:
         return
 
-    chat_id = m.chat.id
+    # ignore commands
+    if m.text and m.text.startswith("/"):
+        return
+
+    chat_id = update.effective_chat.id
     user = m.from_user
 
-    await stats.update_one(
+    await database.stats.update_one(
         {"chat_id": chat_id, "user_id": user.id},
         {
             "$set": {
@@ -31,3 +33,7 @@ async def counter(_, m):
         },
         upsert=True
     )
+
+
+def register(app):
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL, counter))

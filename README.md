@@ -3,7 +3,7 @@
 </p>
 
 <div align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=34&duration=4500&pause=1000&color=00D9FF&center=true&vCenter=true&width=1600&lines=🔥+ChatFight+Bot+—+Fast+Telegram+Bot+—+Powered+by+Pyrogram!">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=34&duration=4500&pause=1000&color=00D9FF&center=true&vCenter=true&width=1600&lines=⚔️+ChatFight+Bot+—+Fast+Telegram+Bot+—+Powered+by+python-telegram-bot!">
 </div>
 
 ---
@@ -63,10 +63,8 @@
 |-------|-------------|
 | `/start` | Start the bot |
 | `/help` | Get help |
-| `/admin` | Admin commands |
-| `/ranking` | View rankings |
-| `/counter` | Counter stats |
-| `/settings` | Bot settings |
+| `/mytop` | Displays top 5 groups where you chatted the most |
+| `/ranking` | Show group leaderboard |
 
 </div>
 
@@ -82,6 +80,7 @@ API_HASH=
 BOT_TOKEN=
 MONGO_URL=
 OWNER_USERNAME=
+OWNER_ID=
 BOT_NAME=
 BOT_USERNAME=
 UPDATES_CHANNEL=

@@ -1,13 +1,11 @@
-from pyrogram import filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from bot.client import app
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
+from telegram.ext import ContextTypes, CommandHandler
 
-from config import BOT_USERNAME, OWNER_USERNAME, UPDATES_CHANNEL
+from config import BOT_USERNAME, UPDATES_CHANNEL, OWNER_ID
 
 
-@app.on_message(filters.command("start"))
-async def start(client, message):
-    keyboard = InlineKeyboardMarkup(
+def _build_keyboard():
+    return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
@@ -16,8 +14,8 @@ async def start(client, message):
                 ),
             ],
             [
-                InlineKeyboardButton("Owner", url=f"https://t.me/{OWNER_USERNAME}"),
-                InlineKeyboardButton("Developer", url="https://t.me/aakshi1209"),
+                InlineKeyboardButton("Owner", url=f"tg://user?id={OWNER_ID}"),
+                InlineKeyboardButton("Developer", url="tg://user?id=8223925872"), 
             ],
             [
                 InlineKeyboardButton("Updates", url=f"https://t.me/{UPDATES_CHANNEL}"),
@@ -25,15 +23,29 @@ async def start(client, message):
         ]
     )
 
-    welcome_text = (
-        "🤖 Welcome, this bot will count group messages, "
-        "create rankings and give prizes to users!"
-    )
 
-    await client.send_photo(
-        chat_id=message.chat.id,
-        photo="assets/logo.png",
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = _build_keyboard()
+
+    if update.effective_chat.type == "private":
+        welcome_text = (
+            "🤖 Welcome, this bot will count group messages, "
+            "create rankings and give prizes to users!"
+        )
+    else:
+        welcome_text = (
+            "🤖 Welcome to the group chat fight bot! "
+            "This bot will count group messages, "
+            "create rankings and give prizes to users!"
+        )
+
+    await context.bot.send_photo(
+        chat_id=update.effective_chat.id,
+        photo=open("assets/logo.png", "rb"),
         caption=welcome_text,
         reply_markup=keyboard
     )
 
+
+def register(app):
+    app.add_handler(CommandHandler("start", start))

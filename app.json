@@ -24,6 +24,10 @@
       "description": "Bot owner username (without @)",
       "required": true
     },
+    "OWNER_ID": {
+      "description": "Bot owner user ID",
+      "required": true
+    },
     "BOT_NAME": {
       "description": "Name of the bot",
       "required": true

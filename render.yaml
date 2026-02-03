@@ -25,6 +25,9 @@ services:
       OWNER_USERNAME:
         sync: false
 
+      OWNER_ID:
+        sync: false  
+
       BOT_NAME:
         sync: false
       BOT_USERNAME:
