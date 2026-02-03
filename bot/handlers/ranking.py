@@ -1,4 +1,5 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import os
 
@@ -123,12 +124,15 @@ async def ranking_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = q.data.replace("rank_", "")
 
     text = await build_text(chat_id, mode)
-
-    await q.edit_message_caption(
-        text,
-        reply_markup=keyboard(mode),
-        parse_mode="HTML"
-    )
+    try:
+        await q.edit_message_caption(
+            text,
+            reply_markup=keyboard(mode),
+            parse_mode="HTML",
+        )
+    except BadRequest as exc:
+        if "Message is not modified" not in str(exc):
+            raise
 
 
 def register(app):
