@@ -35,3 +35,4 @@ services:
 
       UPDATES_CHANNEL:
         sync: false
+

@@ -4,4 +4,3 @@ pillow
 apscheduler
 pytz
 python-dotenv
-flask

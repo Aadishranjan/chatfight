@@ -3,3 +3,4 @@ if [ -x ./venv/bin/python ]; then
 else
   python3 run.py
 fi
+

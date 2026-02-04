@@ -20,3 +20,4 @@ RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
 USER botuser
 
 CMD ["python", "run.py"]
+

@@ -13,3 +13,16 @@ BOT_NAME = os.getenv("BOT_NAME")
 BOT_USERNAME = os.getenv("BOT_USERNAME")
 UPDATES_CHANNEL = os.getenv("UPDATES_CHANNEL")
 TIMEZONE = "Asia/Kolkata"
+
+
+
+# ©️ Copyright Reserved - @aadishranjan  Aadish Ranjan
+
+# ===========================================
+# ©️ 2026 Aadish Ranjan (@Aadishranjan)
+# 🔗 GitHub : https://github.com/Aadishranjan/chatfight
+# 📢 Telegram Channel : https://t.me/YutaxBots
+# ===========================================
+
+
+# ❤️ Love From Chatfight Bot Team

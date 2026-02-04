@@ -76,3 +76,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ©️ Copyright Reserved - @aadishranjan  Aadish Ranjan
+
+# ===========================================
+# ©️ 2026 Aadish Ranjan (@Aadishranjan)
+# 🔗 GitHub : https://github.com/Aadishranjan/chatfight
+# 📢 Telegram Channel : https://t.me/YutaxBots
+# ===========================================
+
+
+# ❤️ Love From Chatfight Bot Team 
