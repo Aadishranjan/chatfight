@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from html import escape
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
@@ -19,13 +18,21 @@ def _is_allowed(user_id: int | None) -> bool:
 
 
 async def _run_cmd(*args: str) -> tuple[int, str]:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
     proc = await asyncio.create_subprocess_exec(
         *args,
         cwd=str(REPO_DIR),
+        env=env,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
-    output, _ = await proc.communicate()
+    try:
+        output, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        return 124, "Command timed out after 60s."
     text = (output or b"").decode("utf-8", errors="replace").strip()
     if not text:
         text = "(no output)"
@@ -55,20 +62,34 @@ def _mask_secrets(text: str) -> str:
 async def update_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not _is_allowed(user.id if user else None):
+        await update.effective_message.reply_text("You are not allowed to use this command.")
         return
 
     msg = await update.effective_message.reply_text("Updating from upstream...")
     pull_url = _build_pull_repo_url()
     code, out = await _run_cmd("git", "pull", pull_url, UPSTREAM_BRANCH)
     safe_out = _mask_secrets(out)
-    trimmed = escape(safe_out[:3500])
-    status = "Update complete." if code == 0 else f"Update failed (exit {code})."
-    await msg.edit_text(f"{status}\n\n<pre>{trimmed}</pre>", parse_mode="HTML")
+    trimmed = safe_out[:3500]
+    if code == 0:
+        text = (
+            f"✅ Update successful from {UPSTREAM_BRANCH}.\n\n"
+            f"{trimmed}\n\n"
+            "♻️ Restarting bot..."
+        )
+        await msg.edit_text(text)
+        await asyncio.sleep(1)
+        os.execv(sys.executable, [sys.executable, "run.py"])
+        return
+
+    await msg.edit_text(
+        f"❌ Update failed (exit {code}).\n\n{trimmed}"
+    )
 
 
 async def restart_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not _is_allowed(user.id if user else None):
+        await update.effective_message.reply_text("You are not allowed to use this command.")
         return
 
     await update.effective_message.reply_text("Restarting bot...")
