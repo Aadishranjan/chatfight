@@ -23,11 +23,38 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+import time
 import os
 
 import bot.database as database
 from bot.utils.time import today, week
 from bot.utils.image import leaderboard_image
+
+TOP_LIMIT = 10
+RANKING_CACHE_TTL_SEC = 30
+_ranking_text_cache = {}
+
+
+def _cache_key(chat_id: int, mode: str):
+    return (chat_id, mode)
+
+
+def _cache_get(chat_id: int, mode: str):
+    item = _ranking_text_cache.get(_cache_key(chat_id, mode))
+    if not item:
+        return None
+    expires_at, value = item
+    if time.monotonic() >= expires_at:
+        _ranking_text_cache.pop(_cache_key(chat_id, mode), None)
+        return None
+    return value
+
+
+def _cache_set(chat_id: int, mode: str, value: str):
+    _ranking_text_cache[_cache_key(chat_id, mode)] = (
+        time.monotonic() + RANKING_CACHE_TTL_SEC,
+        value,
+    )
 
 
 # ---------- KEYBOARD ----------
@@ -51,32 +78,42 @@ def keyboard(mode: str = "overall"):
 
 # ---------- TEXT BUILDER ----------
 async def build_text(chat_id, mode):
+    cached = _cache_get(chat_id, mode)
+    if cached:
+        return cached
+
+    projection = {"_id": 0, "name": 1, "overall": 1, "today.count": 1, "week.count": 1}
     if mode == "overall":
         data = await database.stats.find(
-            {"chat_id": chat_id}
-        ).sort("overall", -1).limit(10).to_list(10)
+            {"chat_id": chat_id},
+            projection,
+        ).sort("overall", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
 
         title = "LEADERBOARD"
         get_count = lambda u: u.get("overall", 0)
 
     elif mode == "today":
         data = await database.stats.find(
-            {"chat_id": chat_id, "today.date": today()}
-        ).sort("today.count", -1).limit(10).to_list(10)
+            {"chat_id": chat_id, "today.date": today()},
+            projection,
+        ).sort("today.count", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
 
         title = "TODAY LEADERBOARD"
         get_count = lambda u: u.get("today", {}).get("count", 0)
 
     else:  # week
         data = await database.stats.find(
-            {"chat_id": chat_id, "week.week": week()}
-        ).sort("week.count", -1).limit(10).to_list(10)
+            {"chat_id": chat_id, "week.week": week()},
+            projection,
+        ).sort("week.count", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
 
         title = "WEEK LEADERBOARD"
         get_count = lambda u: u.get("week", {}).get("count", 0)
 
     if not data:
-        return "<b>📈 {}</b>\n\n<i>No data yet.</i>".format(title)
+        text = "<b>📈 {}</b>\n\n<i>No data yet.</i>".format(title)
+        _cache_set(chat_id, mode, text)
+        return text
 
     text = "<b>📈 {}</b>\n\n".format(title)
     total = 0
@@ -87,6 +124,7 @@ async def build_text(chat_id, mode):
         text += "<b>{}. {} • {}</b>\n".format(i, u['name'], c)
 
     text += "\n<b>✉️ Total messages: {}</b>".format(total)
+    _cache_set(chat_id, mode, text)
     return text
 
 
@@ -106,8 +144,9 @@ async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ONLY OVERALL IMAGE
     data = await database.stats.find(
-        {"chat_id": chat_id}
-    ).sort("overall", -1).limit(10).to_list(10)
+        {"chat_id": chat_id},
+        {"_id": 0, "name": 1, "overall": 1},
+    ).sort("overall", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
 
     if not data:
         await m.reply_text(

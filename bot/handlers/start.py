@@ -36,7 +36,7 @@ def _build_keyboard():
             ],
             [
                 InlineKeyboardButton("Owner", url=f"tg://user?id={OWNER_ID}"),
-                InlineKeyboardButton("Developer", url="tg://user?id=8223925872"), 
+                InlineKeyboardButton("Developer", url="tg://user?id=8433938551"), 
             ],
             [
                 InlineKeyboardButton("Updates", url=f"https://t.me/{UPDATES_CHANNEL}"),

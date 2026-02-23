@@ -21,10 +21,12 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import bot.database as database
-from bot.utils.time import today, week
-from typing import Callable
+from html import escape
+import time
 
 LIMIT = 5
+CHAT_TITLE_TTL_SEC = 3600
+_chat_title_cache = {}
 
 
 def mytop_buttons(mode: str):
@@ -65,25 +67,28 @@ async def get_mytop_text(context: ContextTypes.DEFAULT_TYPE, user_id, mode: str,
             {
                 "user_id": user_id,
                 field: {"$gt": 0}
-            }
+            },
+            {
+                "_id": 0,
+                "chat_id": 1,
+                "chat_title": 1,
+                "overall": 1,
+                "today.count": 1,
+                "week.count": 1,
+            },
         )
         .sort(field, -1)
         .limit(LIMIT)
     )
 
-    text = f"<b>📈 LEADERBOARD | {user_first_name}</b>\n\n"
+    text = f"<b>📈 LEADERBOARD | {escape(user_first_name)}</b>\n\n"
     i = 1
 
     async for doc in cursor:
-        chat_id = doc["chat_id"]
+        chat_id = doc.get("chat_id")
         count = doc["today"]["count"] if mode == "today" else \
                 doc["week"]["count"] if mode == "week" else doc["overall"]
-
-        try:
-            chat = await context.bot.get_chat(chat_id)
-            chat_name = getattr(chat, "title", str(chat_id))
-        except:
-            chat_name = "Unknown Group"
+        chat_name = await _resolve_chat_title(context, chat_id, doc.get("chat_title"))
 
         text += f"<b>{i}. 👥 {chat_name} • {count}</b>\n"
         i += 1
@@ -92,6 +97,51 @@ async def get_mytop_text(context: ContextTypes.DEFAULT_TYPE, user_id, mode: str,
         text += "<b><i>No data found.</i></b>"
 
     return text
+
+
+async def _resolve_chat_title(context: ContextTypes.DEFAULT_TYPE, chat_id: int, existing_title: str | None) -> str:
+    if existing_title:
+        safe_title = escape(existing_title)
+        _chat_title_cache[chat_id] = (time.monotonic() + CHAT_TITLE_TTL_SEC, safe_title)
+        return safe_title
+
+    now = time.monotonic()
+    cached = _chat_title_cache.get(chat_id)
+    if cached and now < cached[0]:
+        return cached[1]
+
+    group_doc = await database.groups.find_one({"chat_id": chat_id}, {"_id": 0, "title": 1})
+    if group_doc and group_doc.get("title"):
+        safe_title = escape(group_doc["title"])
+        _chat_title_cache[chat_id] = (now + CHAT_TITLE_TTL_SEC, safe_title)
+        await database.stats.update_many(
+            {"chat_id": chat_id, "chat_title": {"$in": [None, ""]}},
+            {"$set": {"chat_title": group_doc["title"]}},
+        )
+        return safe_title
+
+    title = "Unknown Group"
+    try:
+        chat = await context.bot.get_chat(chat_id)
+        title = getattr(chat, "title", None) or title
+    except Exception:
+        pass
+
+    safe_title = escape(title)
+    _chat_title_cache[chat_id] = (now + CHAT_TITLE_TTL_SEC, safe_title)
+
+    if title != "Unknown Group":
+        await database.groups.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"title": title}},
+            upsert=True,
+        )
+        await database.stats.update_many(
+            {"chat_id": chat_id, "chat_title": {"$in": [None, ""]}},
+            {"$set": {"chat_title": title}},
+        )
+
+    return safe_title
 
 
 async def mytop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):

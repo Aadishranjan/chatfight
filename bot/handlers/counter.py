@@ -30,7 +30,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 import bot.database as database
 from bot.utils.time import today, week
 
-FLUSH_INTERVAL_SEC = 60
+FLUSH_INTERVAL_SEC = 180
 SPAM_WINDOW_SEC = 10
 SPAM_THRESHOLD = 10
 SPAM_BLOCK_SEC = 20 * 60
@@ -83,13 +83,22 @@ async def counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     async with _buffer_lock:
+        chat = update.effective_chat
         entry = _buffer.get(key)
         if entry is None:
-            entry = {"count": 0, "name": user.first_name, "username": user.username}
+            entry = {
+                "count": 0,
+                "name": user.first_name,
+                "username": user.username,
+                "username_lc": (user.username or "").lower() or None,
+                "chat_title": getattr(chat, "title", None),
+            }
             _buffer[key] = entry
         entry["count"] = int(entry["count"]) + 1
         entry["name"] = user.first_name
         entry["username"] = user.username
+        entry["username_lc"] = (user.username or "").lower() or None
+        entry["chat_title"] = getattr(chat, "title", None)
 
 
 async def _flush_counts(context: ContextTypes.DEFAULT_TYPE):
@@ -111,6 +120,8 @@ async def _flush_counts(context: ContextTypes.DEFAULT_TYPE):
                     "$set": {
                         "name": data.get("name"),
                         "username": data.get("username"),
+                        "username_lc": data.get("username_lc"),
+                        "chat_title": data.get("chat_title"),
                         "today.date": today(),
                         "week.week": week(),
                     },
@@ -128,8 +139,29 @@ async def _flush_counts(context: ContextTypes.DEFAULT_TYPE):
         await database.stats.bulk_write(ops, ordered=False)
 
 
+async def get_chat_buffer_snapshot(chat_id: int) -> Dict[int, Dict[str, object]]:
+    """Return in-memory, not-yet-flushed counts for a specific chat."""
+    async with _buffer_lock:
+        snapshot: Dict[int, Dict[str, object]] = {}
+        for (buffer_chat_id, user_id), data in _buffer.items():
+            if buffer_chat_id != chat_id:
+                continue
+            snapshot[user_id] = {
+                "count": int(data.get("count", 0)),
+                "name": data.get("name"),
+                "username": data.get("username"),
+                "chat_title": data.get("chat_title"),
+            }
+        return snapshot
+
+
 def register(app):
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL, counter))
+    app.add_handler(
+        MessageHandler(
+            filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL & ~filters.COMMAND,
+            counter,
+        )
+    )
     app.job_queue.run_repeating(
         _flush_counts,
         interval=FLUSH_INTERVAL_SEC,

@@ -65,6 +65,8 @@
 | `/help` | Get help |
 | `/mytop` | Displays top 5 groups where you chatted the most |
 | `/ranking` | Show group leaderboard |
+| `/topusers` | Show top 10 active users in the current group |
+| `/userstats <reply/@username/user_id>` | Show message count of a user in the current group |
 
 </div>
 
@@ -155,4 +157,3 @@ python3 run.py
 <p align="center">
   <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=22&duration=3000&pause=1000&color=00D9FF&center=true&vCenter=true&width=600&lines=Fast+🚀+Stable+🔊+Powerful+🎯">
 </p>
-

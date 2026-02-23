@@ -19,6 +19,7 @@
 # Project: aadishranjan35@gmail.com
 
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ASCENDING, DESCENDING
 from config import MONGO_URL
 
 # Initialize these lazily in `init_db()` so the Motor client
@@ -28,6 +29,7 @@ db = None
 
 stats = None
 groups = None
+_indexes_ready = False
 
 
 def init_db():
@@ -37,6 +39,22 @@ def init_db():
 		db = mongo.chatfight
 		stats = db.stats
 		groups = db.groups
+
+
+async def ensure_indexes():
+	global _indexes_ready
+	if _indexes_ready:
+		return
+
+	await stats.create_index([("chat_id", ASCENDING), ("overall", DESCENDING)], background=True)
+	await stats.create_index([("chat_id", ASCENDING), ("today.date", ASCENDING), ("today.count", DESCENDING)], background=True)
+	await stats.create_index([("chat_id", ASCENDING), ("week.week", ASCENDING), ("week.count", DESCENDING)], background=True)
+	await stats.create_index([("user_id", ASCENDING), ("overall", DESCENDING)], background=True)
+	await stats.create_index([("chat_id", ASCENDING), ("user_id", ASCENDING)], unique=True, background=True)
+	await stats.create_index([("chat_id", ASCENDING), ("username_lc", ASCENDING)], background=True)
+	await groups.create_index([("chat_id", ASCENDING)], unique=True, background=True)
+
+	_indexes_ready = True
 
 
 

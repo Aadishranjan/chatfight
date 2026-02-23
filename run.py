@@ -24,6 +24,8 @@ import logging
 from datetime import time, datetime, timedelta
 import zoneinfo
 
+from telegram import BotCommand
+import bot.database as database
 from bot.client import build_app
 from bot.utils.reset_check import reset_if_needed
 from config import TIMEZONE
@@ -34,6 +36,21 @@ mytop = importlib.import_module("bot.handlers.mytop")
 ranking = importlib.import_module("bot.handlers.ranking")
 start_handler = importlib.import_module("bot.handlers.start")
 counter = importlib.import_module("bot.handlers.counter")
+activity = importlib.import_module("bot.handlers.activity")
+admin = importlib.import_module("bot.handlers.admin")
+
+
+BOT_COMMANDS = [
+    BotCommand("start", "Start the bot"),
+    BotCommand("mytop", "Show your top active groups"),
+    BotCommand("rankings", "Show group leaderboard"),
+    BotCommand("topusers", "Show top 10 active users"),
+    BotCommand("userstats", "Show message count of a user"),
+]
+
+
+async def _set_bot_commands(app):
+    await app.bot.set_my_commands(BOT_COMMANDS)
 
 
 def main():
@@ -49,23 +66,25 @@ def main():
 
     print("Starting ChatFight Bot...")
 
-    app = build_app()
+    app = build_app(post_init=_set_bot_commands)
 
     # initialize database immediately (sync)
-    from bot.database import init_db
-    init_db()
+    database.init_db()
 
     # schedule async reset after app starts
-    async def _run_reset(context):
+    async def _startup_tasks(context):
+        await database.ensure_indexes()
         await reset_if_needed()
 
-    app.job_queue.run_once(_run_reset, when=0)
+    app.job_queue.run_once(_startup_tasks, when=0)
 
     # register handlers
     mytop.register(app)
     ranking.register(app)
     start_handler.register(app)
     counter.register(app)
+    activity.register(app)
+    admin.register(app)
 
     # schedule daily reset at 00:00 in configured timezone
     tz = zoneinfo.ZoneInfo(TIMEZONE)

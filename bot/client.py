@@ -23,8 +23,11 @@ from telegram.ext import ApplicationBuilder
 from config import BOT_TOKEN
 
 
-def build_app():
-    return ApplicationBuilder().token(BOT_TOKEN).build()
+def build_app(post_init=None):
+    builder = ApplicationBuilder().token(BOT_TOKEN)
+    if post_init:
+        builder = builder.post_init(post_init)
+    return builder.build()
 
 
 
