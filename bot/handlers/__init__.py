@@ -25,6 +25,7 @@ from .start import *
 from .counter import *
 from .activity import *
 from .admin import *
+from .ping import *
 
 
 # ©️ Copyright Reserved - @aadishranjan  Aadish Ranjan

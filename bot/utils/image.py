@@ -18,7 +18,8 @@
 #
 # Project: aadishranjan35@gmail.com
 
-
+import io
+import os
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -38,6 +39,15 @@ MUTED    = (180, 180, 180)
 
 
 def leaderboard_image(data, title="LEADERBOARD"):
+    image_bytes = leaderboard_image_bytes(data, title)
+    os.makedirs("resource", exist_ok=True)
+    path = "resource/leaderboard.png"
+    with open(path, "wb") as f:
+        f.write(image_bytes)
+    return path
+
+
+def leaderboard_image_bytes(data, title="LEADERBOARD"):
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
@@ -50,7 +60,9 @@ def leaderboard_image(data, title="LEADERBOARD"):
         pass
 
     # ---------- TITLE ----------
-    draw.text((WIDTH//2 - 180, 30), title, font=FONT_TITLE, fill=TEXT_CLR)
+    title_bbox = draw.textbbox((0, 0), title, font=FONT_TITLE)
+    title_w = title_bbox[2] - title_bbox[0]
+    draw.text(((WIDTH - title_w) // 2, 30), title, font=FONT_TITLE, fill=TEXT_CLR)
 
     # ---------- CARD ----------
     card_x1, card_y1 = 50, 120
@@ -69,7 +81,8 @@ def leaderboard_image(data, title="LEADERBOARD"):
                   font=FONT_NAME,
                   fill=MUTED)
     else:
-        max_score = max(u["count"] for u in data)
+        max_score = max((u["count"] for u in data), default=0)
+        max_score = max(max_score, 1)
 
         start_y = card_y1 + 40
         bar_x   = card_x1 + 260
@@ -106,10 +119,44 @@ def leaderboard_image(data, title="LEADERBOARD"):
                 fill=TEXT_CLR
             )
 
+    bio = io.BytesIO()
+    img.save(bio, format="PNG", optimize=True)
+    return bio.getvalue()
 
-    path = "resource/leaderboard.png"
-    img.save(path)
-    return path
+
+def system_stats_image_bytes(lines, title="SYSTEM STATS"):
+    img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
+    draw = ImageDraw.Draw(img)
+
+    try:
+        bg = Image.open("assets/bg.png").resize((WIDTH, HEIGHT)).convert("RGBA")
+        img.paste(bg, (0, 0), bg)
+        draw = ImageDraw.Draw(img)
+    except Exception:
+        pass
+
+    title_bbox = draw.textbbox((0, 0), title, font=FONT_TITLE)
+    title_w = title_bbox[2] - title_bbox[0]
+    draw.text(((WIDTH - title_w) // 2, 30), title, font=FONT_TITLE, fill=TEXT_CLR)
+
+    card_x1, card_y1 = 70, 140
+    card_x2, card_y2 = WIDTH - 70, HEIGHT - 70
+    draw.rounded_rectangle(
+        [card_x1, card_y1, card_x2, card_y2],
+        radius=30,
+        fill=CARD_BG,
+        outline=(120, 40, 50),
+        width=3,
+    )
+
+    y = card_y1 + 55
+    for line in lines:
+        draw.text((card_x1 + 40, y), line, font=FONT_NAME, fill=TEXT_CLR)
+        y += 70
+
+    bio = io.BytesIO()
+    img.save(bio, format="PNG", optimize=True)
+    return bio.getvalue()
 
 
 

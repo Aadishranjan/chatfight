@@ -20,19 +20,24 @@
 
 
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
-from telegram.error import BadRequest
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update, InputFile
+from telegram.error import BadRequest, TimedOut
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 import time
-import os
+import asyncio
+import logging
+import io
 
 import bot.database as database
 from bot.utils.time import today, week
-from bot.utils.image import leaderboard_image
+from bot.utils.image import leaderboard_image_bytes
 
 TOP_LIMIT = 10
 RANKING_CACHE_TTL_SEC = 30
+RANKING_OVERALL_CACHE_TTL_SEC = 15
 _ranking_text_cache = {}
+_ranking_overall_cache = {}
+logger = logging.getLogger(__name__)
 
 
 def _cache_key(chat_id: int, mode: str):
@@ -54,6 +59,24 @@ def _cache_set(chat_id: int, mode: str, value: str):
     _ranking_text_cache[_cache_key(chat_id, mode)] = (
         time.monotonic() + RANKING_CACHE_TTL_SEC,
         value,
+    )
+
+
+def _overall_cache_get(chat_id: int):
+    item = _ranking_overall_cache.get(chat_id)
+    if not item:
+        return None
+    expires_at, payload = item
+    if time.monotonic() >= expires_at:
+        _ranking_overall_cache.pop(chat_id, None)
+        return None
+    return payload
+
+
+def _overall_cache_set(chat_id: int, payload: dict):
+    _ranking_overall_cache[chat_id] = (
+        time.monotonic() + RANKING_OVERALL_CACHE_TTL_SEC,
+        payload,
     )
 
 
@@ -128,6 +151,37 @@ async def build_text(chat_id, mode):
     return text
 
 
+async def _build_overall_payload(chat_id: int):
+    cached = _overall_cache_get(chat_id)
+    if cached:
+        return cached
+
+    data = await database.stats.find(
+        {"chat_id": chat_id},
+        {"_id": 0, "name": 1, "overall": 1},
+    ).sort("overall", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
+
+    if not data:
+        payload = {
+            "has_data": False,
+            "caption": "<b>🏆 CHATFIGHT LEADERBOARD</b>\n\n<i>No data yet.</i>",
+        }
+        _overall_cache_set(chat_id, payload)
+        return payload
+
+    leaderboard_data = [
+        {"name": u["name"], "count": u.get("overall", 0)}
+        for u in data
+    ]
+    payload = {
+        "has_data": True,
+        "caption": await build_text(chat_id, "overall"),
+        "image_bytes": leaderboard_image_bytes(leaderboard_data, "LEADERBOARD"),
+    }
+    _overall_cache_set(chat_id, payload)
+    return payload
+
+
 # ---------- /ranking ----------
 async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only allow in groups
@@ -142,39 +196,47 @@ async def ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     chat_id = chat.id
 
-    # ONLY OVERALL IMAGE
-    data = await database.stats.find(
-        {"chat_id": chat_id},
-        {"_id": 0, "name": 1, "overall": 1},
-    ).sort("overall", -1).limit(TOP_LIMIT).to_list(TOP_LIMIT)
+    payload = await _build_overall_payload(chat_id)
+    reply_markup = keyboard("overall")
 
-    if not data:
+    if not payload["has_data"]:
         await m.reply_text(
-            "<b>🏆 CHATFIGHT LEADERBOARD</b>\n\n<i>No data yet.</i>",
-            reply_markup=keyboard("overall"),
+            payload["caption"],
+            reply_markup=reply_markup,
             parse_mode="HTML"
         )
         return
 
-    leaderboard_data = [
-        {"name": u["name"], "count": u.get("overall", 0)}
-        for u in data
-    ]
-
-    image_path = leaderboard_image(leaderboard_data, "LEADERBOARD")
-    caption = await build_text(chat_id, "overall")
-
-    await context.bot.send_photo(
-        chat_id=chat_id,
-        photo=open(image_path, "rb"),
-        caption=caption,
-        reply_markup=keyboard("overall"),
-        parse_mode="HTML"
-    )
-
-    # Delete the image after sending
-    if os.path.exists(image_path):
-        os.remove(image_path)
+    caption = payload["caption"]
+    try:
+        # Telegram uploads can intermittently timeout; retry once before fallback.
+        for attempt in range(2):
+            try:
+                photo = InputFile(io.BytesIO(payload["image_bytes"]), filename="leaderboard.png")
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML",
+                    connect_timeout=10,
+                    write_timeout=30,
+                    read_timeout=30,
+                    pool_timeout=10,
+                )
+                break
+            except TimedOut:
+                if attempt == 0:
+                    await asyncio.sleep(1)
+                    continue
+                raise
+    except TimedOut:
+        logger.warning("send_photo timed out for chat_id=%s; sending text fallback", chat_id)
+        await m.reply_text(
+            caption,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
 
 
 # ---------- CALLBACKS (TEXT ONLY) ----------
@@ -186,11 +248,18 @@ async def ranking_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = await build_text(chat_id, mode)
     try:
-        await q.edit_message_caption(
-            text,
-            reply_markup=keyboard(mode),
-            parse_mode="HTML",
-        )
+        if q.message.caption is not None:
+            await q.edit_message_caption(
+                text,
+                reply_markup=keyboard(mode),
+                parse_mode="HTML",
+            )
+        else:
+            await q.edit_message_text(
+                text,
+                reply_markup=keyboard(mode),
+                parse_mode="HTML",
+            )
     except BadRequest as exc:
         if "Message is not modified" not in str(exc):
             raise

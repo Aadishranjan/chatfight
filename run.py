@@ -38,6 +38,7 @@ start_handler = importlib.import_module("bot.handlers.start")
 counter = importlib.import_module("bot.handlers.counter")
 activity = importlib.import_module("bot.handlers.activity")
 admin = importlib.import_module("bot.handlers.admin")
+ping_handler = importlib.import_module("bot.handlers.ping")
 
 
 BOT_COMMANDS = [
@@ -46,6 +47,7 @@ BOT_COMMANDS = [
     BotCommand("rankings", "Show group leaderboard"),
     BotCommand("topusers", "Show top 10 active users"),
     BotCommand("userstats", "Show message count of a user"),
+    BotCommand("ping", "Show server stats"),
 ]
 
 
@@ -85,6 +87,7 @@ def main():
     counter.register(app)
     activity.register(app)
     admin.register(app)
+    ping_handler.register(app)
 
     # schedule daily reset at 00:00 in configured timezone
     tz = zoneinfo.ZoneInfo(TIMEZONE)
